@@ -1,0 +1,1436 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard — Live Tracking</title>
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg: #050a12;
+      --surface: #0c1525;
+      --surface2: #111e35;
+      --border: rgba(56, 189, 248, 0.15);
+      --accent: #38bdf8;
+      --accent2: #818cf8;
+      --green: #34d399;
+      --red: #f87171;
+      --text: #e2e8f0;
+      --muted: #64748b;
+      --glow-blue: rgba(56, 189, 248, 0.3);
+      --glow-green: rgba(52, 211, 153, 0.4);
+      --glow-red: rgba(248, 113, 113, 0.4);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Syne', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ─── HEADER ─── */
+    #header {
+      position: relative;
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      height: 60px;
+      background: rgba(5,10,18,0.95);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(20px);
+      flex-shrink: 0;
+    }
+
+    #header::after {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+      opacity: 0.6;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 10px var(--accent), 0 0 20px var(--accent);
+      animation: pulse-dot 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse-dot {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.4); opacity: 0.7; }
+    }
+
+    .logo-text {
+      font-family: 'Syne', sans-serif;
+      font-weight: 800;
+      font-size: 15px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--text);
+    }
+
+    .logo-text span {
+      color: var(--accent);
+    }
+
+    .header-center {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .stat-chip {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 14px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+    }
+
+    .stat-chip .dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+    }
+
+    .stat-chip.active .dot {
+      background: var(--green);
+      box-shadow: 0 0 6px var(--green);
+      animation: blink 1.5s ease-in-out infinite;
+    }
+
+    .stat-chip.inactive .dot {
+      background: var(--muted);
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    #btnLogout {
+      padding: 8px 20px;
+      background: transparent;
+      color: var(--red);
+      border: 1px solid rgba(248, 113, 113, 0.4);
+      border-radius: 6px;
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      cursor: pointer;
+      text-transform: uppercase;
+      transition: all 0.2s ease;
+    }
+
+    #btnLogout:hover {
+      background: rgba(248, 113, 113, 0.1);
+      border-color: var(--red);
+      box-shadow: 0 0 20px rgba(248,113,113,0.2);
+    }
+
+     .btnCreate {
+      padding: 8px 20px;
+      background: transparent;
+      color: var(--blue);
+      border: 1px solid rgba(248, 113, 113, 0.4);
+      border-radius: 6px;
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      cursor: pointer;
+      text-transform: uppercase;
+      transition: all 0.2s ease;
+    }
+
+    .btnCreate:hover {
+      background: rgba(248, 113, 113, 0.1);
+      border-color: var(--blue);
+      box-shadow: 0 0 20px rgba(248,113,113,0.2);
+    }
+
+    /* ─── MAIN LAYOUT ─── */
+    #main {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ─── SIDEBAR ─── */
+    #sidebar {
+      width: 280px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    .sidebar-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .sidebar-title {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    #userCount {
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      color: var(--accent);
+    }
+
+    #userList {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+    }
+
+    #userList::-webkit-scrollbar { width: 3px; }
+    #userList::-webkit-scrollbar-track { background: transparent; }
+    #userList::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .user-card {
+      padding: 12px 14px;
+      margin-bottom: 6px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .user-card:hover {
+      border-color: var(--accent);
+      background: rgba(56,189,248,0.06);
+      transform: translateX(2px);
+    }
+
+    .user-avatar {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800;
+      font-size: 13px;
+      flex-shrink: 0;
+      position: relative;
+    }
+
+    .user-avatar.active {
+      background: rgba(52,211,153,0.15);
+      color: var(--green);
+      border: 1px solid rgba(52,211,153,0.3);
+    }
+
+    .user-avatar.inactive {
+      background: rgba(100,116,139,0.15);
+      color: var(--muted);
+      border: 1px solid rgba(100,116,139,0.2);
+    }
+
+    .status-ring {
+      position: absolute;
+      inset: -3px;
+      border-radius: 50%;
+      border: 2px solid transparent;
+    }
+
+    .user-avatar.active .status-ring {
+      border-color: var(--green);
+      animation: spin-ring 3s linear infinite;
+      border-top-color: transparent;
+      border-right-color: transparent;
+    }
+
+    @keyframes spin-ring {
+      to { transform: rotate(360deg); }
+    }
+
+    .user-info { flex: 1; min-width: 0; }
+
+    .user-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .user-email {
+      font-family: 'Space Mono', monospace;
+      font-size: 9px;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-top: 2px;
+    }
+
+    .user-status-badge {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      padding: 3px 8px;
+      border-radius: 20px;
+      text-transform: uppercase;
+      flex-shrink: 0;
+    }
+
+    .user-status-badge.active {
+      background: rgba(52,211,153,0.15);
+      color: var(--green);
+      border: 1px solid rgba(52,211,153,0.3);
+    }
+
+    .user-status-badge.inactive {
+      background: rgba(100,116,139,0.1);
+      color: var(--muted);
+      border: 1px solid rgba(100,116,139,0.2);
+    }
+
+    /* MAP WRAPPER - FULL STYLE from request */
+    #map-wrapper {
+      flex: 1;
+      position: relative;
+    }
+
+    #map {
+      width: 100%;
+      height: 100%;
+      background: #050a12;
+    }
+
+    /* Map overlay grid */
+    #map-wrapper::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 500;
+      background-image:
+        linear-gradient(rgba(56,189,248,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(56,189,248,0.03) 1px, transparent 1px);
+      background-size: 60px 60px;
+    }
+
+    /* Corner decorators */
+    .corner {
+      position: absolute;
+      z-index: 600;
+      width: 20px; height: 20px;
+      pointer-events: none;
+    }
+    .corner-tl { top: 12px; left: 12px; border-top: 2px solid var(--accent); border-left: 2px solid var(--accent); }
+    .corner-tr { top: 12px; right: 12px; border-top: 2px solid var(--accent); border-right: 2px solid var(--accent); }
+    .corner-bl { bottom: 12px; left: 12px; border-bottom: 2px solid var(--accent); border-left: 2px solid var(--accent); }
+    .corner-br { bottom: 12px; right: 12px; border-bottom: 2px solid var(--accent); border-right: 2px solid var(--accent); }
+
+    /* Coordinates display */
+    #coords-display {
+      position: absolute;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 600;
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      color: var(--accent);
+      background: rgba(5,10,18,0.8);
+      border: 1px solid var(--border);
+      padding: 5px 14px;
+      border-radius: 20px;
+      backdrop-filter: blur(10px);
+      pointer-events: none;
+    }
+
+    /* Leaflet popup style override */
+    .leaflet-popup-content-wrapper {
+      background: var(--surface2) !important;
+      border: 1px solid var(--border) !important;
+      border-radius: 10px !important;
+      color: var(--text) !important;
+      box-shadow: 0 0 30px rgba(56,189,248,0.2) !important;
+    }
+    .leaflet-popup-tip { background: var(--surface2) !important; }
+    .leaflet-popup-content {
+      font-family: 'Syne', sans-serif !important;
+      font-size: 13px !important;
+      line-height: 1.6 !important;
+    }
+
+    /* Scanline effect */
+    #map-wrapper::after {
+      content: '';
+      position: absolute;
+      left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, rgba(56,189,248,0.4), transparent);
+      pointer-events: none;
+      z-index: 501;
+      animation: scanline 6s linear infinite;
+    }
+    @keyframes scanline {
+      0% { top: -10%; }
+      100% { top: 110%; }
+    }
+
+    /* TOMBOL CREATE LOCATION */
+    .btn-create-location {
+      position: absolute;
+      bottom: 24px;
+      right: 24px;
+      z-index: 800;
+      background: linear-gradient(135deg, #0f172a, #1e293b);
+      border: 1px solid var(--accent);
+      color: white;
+      padding: 12px 20px;
+      border-radius: 40px;
+      font-weight: bold;
+      font-size: 0.85rem;
+      backdrop-filter: blur(12px);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      transition: 0.2s;
+      box-shadow: 0 0 15px rgba(56,189,248,0.2);
+      font-family: 'Space Mono', monospace;
+    }
+    .btn-create-location i { font-size: 1.2rem; color: var(--accent); }
+    .btn-create-location:hover {
+      background: #1e2a44;
+      transform: scale(1.02);
+      border-color: #7ac7ff;
+      box-shadow: 0 0 20px var(--glow-blue);
+    }
+
+
+    /* ─── TOAST NOTIFICATION ─── */
+    #toast {
+      position: absolute;
+      top: 70px;
+      right: 16px;
+      z-index: 2000;
+      max-width: 280px;
+      padding: 12px 16px;
+      border-radius: 10px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      font-size: 12px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+      transform: translateX(320px);
+      transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+    }
+
+    #toast.show {
+      transform: translateX(0);
+    }
+
+    #toast .toast-title {
+      font-weight: 700;
+      font-size: 11px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 4px;
+    }
+
+    /* ─── SCAN LINE EFFECT ─── */
+    @keyframes scanline {
+      0% { top: -10%; }
+      100% { top: 110%; }
+    }
+
+    #map-wrapper::after {
+      content: '';
+      position: absolute;
+      left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, rgba(56,189,248,0.4), transparent);
+      pointer-events: none;
+      z-index: 501;
+      animation: scanline 6s linear infinite;
+    }
+
+
+    /* TOMBOL CREATE LOCATION */
+    .btn-create-location {
+      position: absolute;
+      bottom: 24px;
+      right: 24px;
+      z-index: 800;
+      background: linear-gradient(135deg, #0f172a, #1e293b);
+      border: 1px solid var(--accent);
+      color: white;
+      padding: 12px 20px;
+      border-radius: 40px;
+      font-weight: bold;
+      font-size: 0.85rem;
+      backdrop-filter: blur(12px);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      transition: 0.2s;
+      box-shadow: 0 0 15px rgba(56,189,248,0.2);
+      font-family: 'Space Mono', monospace;
+    }
+    .btn-create-location i {
+      font-size: 1.2rem;
+      color: var(--accent);
+    }
+    .btn-create-location:hover {
+      background: #1e2a44;
+      transform: scale(1.02);
+      border-color: #7ac7ff;
+      box-shadow: 0 0 20px var(--glow-blue);
+    }
+
+    /* MODAL LOCATION (CYBER GLASS) */
+    .modal-location {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.75);
+      backdrop-filter: blur(12px);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 3000;
+    }
+    .location-modal-card {
+      background: var(--surface);
+      border-radius: 28px;
+      width: 420px;
+      max-width: 90vw;
+      padding: 28px;
+      border: 1px solid var(--border);
+      box-shadow: 0 25px 45px rgba(0,0,0,0.5), 0 0 0 1px rgba(56,189,248,0.2);
+      font-family: 'Syne', sans-serif;
+    }
+    .location-modal-card h2 {
+      font-size: 1.4rem;
+      margin-bottom: 8px;
+      letter-spacing: -0.5px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--accent);
+    }
+    .location-modal-card hr {
+      border-color: var(--border);
+      margin: 16px 0;
+    }
+    .form-group {
+      margin-bottom: 18px;
+    }
+    .form-group label {
+      display: block;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: var(--muted);
+    }
+    .form-group input, .form-group textarea {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      padding: 12px 14px;
+      border-radius: 14px;
+      color: white;
+      font-family: 'Space Mono', monospace;
+      font-size: 13px;
+      outline: none;
+      transition: 0.2s;
+    }
+    .form-group input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 8px var(--glow-blue);
+    }
+    .coord-row {
+      display: flex;
+      gap: 12px;
+    }
+    .coord-row .form-group {
+      flex: 1;
+    }
+    .pick-map-btn {
+      background: #1e293b;
+      border: 1px solid var(--accent2);
+      color: var(--accent2);
+      padding: 8px 12px;
+      border-radius: 30px;
+      font-size: 11px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .pick-map-btn:hover {
+      background: #2d3b5a;
+      color: white;
+    }
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+      margin-top: 20px;
+    }
+    .modal-actions button {
+      padding: 10px 20px;
+      border-radius: 34px;
+      font-weight: 600;
+      font-family: 'Space Mono', monospace;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .modal-actions button.primary {
+      background: var(--accent);
+      border: none;
+      color: #050a12;
+      font-weight: 700;
+    }
+    .modal-actions button.primary:hover {
+      background: #7ac7ff;
+      transform: scale(0.98);
+    }
+    .modal-actions button:hover {
+      background: rgba(255,255,255,0.05);
+    }
+
+  </style>
+</head>
+<body>
+
+<!-- ─── HEADER ─── -->
+<div id="header">
+  <div class="header-left">
+    <div class="logo-dot"></div>
+    <div class="logo-text">LIVE<span>TRACK</span></div>
+  </div>
+  <div class="header-center">
+    <div class="stat-chip active">
+      <div class="dot"></div>
+      <span id="activeCount">0</span> ACTIVE
+    </div>
+    <div class="stat-chip inactive">
+      <div class="dot"></div>
+      <span id="inactiveCount">0</span> INACTIVE
+    </div>
+  </div>
+   <button class="btnCreate" id="openLocationModalBtn"><i class="fas fa-map-marker-alt"></i> CREATE LOCATION</button>
+  <button id="btnLogout">⏻ LOGOUT</button>
+
+</div>
+
+<!-- ─── MAIN ─── -->
+<div id="main">
+
+  <!-- SIDEBAR -->
+  <div id="sidebar">
+    <div class="sidebar-header">
+      <span class="sidebar-title">Users</span>
+      <span id="userCount">0 Total</span>
+    </div>
+    <div id="userList"></div>
+  </div>
+
+  <!-- MAP -->
+  <div id="map-wrapper">
+    <div class="corner corner-tl"></div>
+    <div class="corner corner-tr"></div>
+    <div class="corner corner-bl"></div>
+    <div class="corner corner-br"></div>
+    <div id="map"></div>
+    <div id="coords-display">LAT — LNG</div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast">
+  <div class="toast-title" id="toastTitle">Update</div>
+  <div id="toastBody">–</div>
+</div>
+
+<!-- MODAL MESSAGE -->
+<div id="messageModal" style="
+  display:none;
+  position:fixed;
+  top:0; left:0;
+  width:100%; height:100%;
+  background:rgba(0,0,0,0.6);
+  justify-content:center;
+  align-items:center;
+  z-index:2000;
+">
+
+  <div style="
+    background:#1e293b;
+    padding:20px;
+    border-radius:10px;
+    width:300px;
+    color:white;
+  ">
+    <h3 id="modalUserName">Kirim Pesan</h3>
+
+    <div id="chatBox" style="height:300px; overflow-y:auto;"></div>
+    <input id="messageText" placeholder="Ketik pesan..." 
+  style="width:100%; padding:8px; border-radius:6px; margin-bottom:10px;">
+
+    <br><br>
+
+    <button onclick="sendMessage()"
+      style="background:#22c55e; color:white; padding:8px 12px; border:none; border-radius:6px;">
+      Kirim
+    </button>
+
+    <button onclick="closeModal()"
+      style="background:#ef4444; color:white; padding:8px 12px; border:none; border-radius:6px;">
+      Batal
+    </button>
+  </div>
+</div>
+
+<!-- MODAL CREATE LOCATION (NEW) -->
+<div id="locationModal" class="modal-location">
+  <div class="location-modal-card">
+    <h2><i class="fas fa-location-dot"></i> Register Location</h2>
+    <hr>
+    <div class="form-group">
+      <label>📍 NAME</label>
+      <input type="text" id="locationName" placeholder="contoh: Base Camp / Toko Utama" autocomplete="off">
+    </div>
+    <div class="coord-row">
+      <div class="form-group"><label>🌐 LATITUDE</label><input type="number" step="any" id="locationLat" placeholder="-6.2088"></div>
+      <div class="form-group"><label>🗺️ LONGITUDE</label><input type="number" step="any" id="locationLng" placeholder="106.8456"></div>
+    </div>
+    <div class="form-group">
+      <label>📡 RADIUS (meters)</label>
+      <input type="number" id="locationRadius" placeholder="100" value="100">
+    </div>
+    <div style="display: flex; justify-content: flex-end; margin-bottom: 8px;">
+      <button type="button" id="pickFromMapBtn" class="pick-map-btn"><i class="fas fa-mouse-pointer"></i> PICK FROM MAP</button>
+    </div>
+    <div class="modal-actions">
+      <button id="cancelLocationBtn">CANCEL</button>
+      <button id="saveLocationBtn" class="primary">CREATE</button>
+    </div>
+  </div>
+</div>
+
+<script src="../port.js"></script>
+<!-- Leaflet -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<!-- Socket.IO -->
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+
+<script>
+// ─── AUTH ───
+const token = localStorage.getItem("accessToken");
+
+if (!token) {
+  alert("Harus login dulu");
+  window.location.href = "/index.html";
+}
+
+// ─── STATE ───
+let map;
+let markers = {};
+let usersData = {};
+
+// ─── MAP INIT ───
+function initMap() {
+  map = L.map("map", { zoomControl: false }).setView([-2.5, 118], 5);
+
+  // Dark tile layer
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
+    subdomains: 'abcd',
+    maxZoom: 19
+  }).addTo(map);
+
+  // Custom zoom controls
+  L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+  // Coords display
+  map.on('mousemove', (e) => {
+    const lat = e.latlng.lat.toFixed(5);
+    const lng = e.latlng.lng.toFixed(5);
+    document.getElementById('coords-display').textContent = `${lat}° N  ${lng}° E`;
+  });
+}
+
+// ─── CUSTOM MARKER ───
+function createMarkerIcon(isActive, statusArea) {
+  const color = statusArea === "inside" ? "#34d399" : "#f87171";
+  const glowColor = statusArea === "inside" ? "rgba(52,211,153,0.5)" : "rgba(248,113,113,0.5)";
+  const pulseAnim = isActive ? `
+    <circle cx="12" cy="12" r="10" fill="none" stroke="${color}" stroke-width="1.5" opacity="0.8">
+      <animate attributeName="r" values="8;18;8" dur="2s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0.8;0;0.8" dur="2s" repeatCount="indefinite"/>
+    </circle>
+  ` : '';
+
+  const inactiveRing = !isActive ? `
+    <circle cx="12" cy="12" r="9" fill="none" stroke="${color}" stroke-width="1" opacity="0.3" stroke-dasharray="4 2"/>
+  ` : '';
+
+  const svgContent = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+      <defs>
+        <filter id="glow">
+          <feGaussianBlur stdDeviation="2" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+      ${pulseAnim}
+      ${inactiveRing}
+      <circle cx="12" cy="12" r="6" fill="${color}" filter="url(#glow)" opacity="${isActive ? '1' : '0.5'}"/>
+      <circle cx="12" cy="12" r="3" fill="white" opacity="${isActive ? '0.9' : '0.4'}"/>
+    </svg>
+  `;
+
+  return L.divIcon({
+    html: svgContent,
+    className: '',
+    iconSize: [24, 24],
+    iconAnchor: [12, 12],
+    popupAnchor: [0, -16]
+  });
+}
+
+// ─── POPUP HTML ───
+function popupHTML(user, isActive) {
+  const statusColor = user.status_area === "inside" ? "#34d399" : "#f87171";
+  const statusLabel = user.status_area === "inside" ? "INSIDE" : "OUTSIDE";
+  const activeLabel = isActive ? "ACTIVE" : "INACTIVE";
+  const activeColor = isActive ? "#34d399" : "#64748b";
+
+  return `
+    <div style="font-family:'Syne',sans-serif; min-width:180px; padding:4px 0;">
+      <div style="font-weight:800; font-size:14px; color:#e2e8f0; margin-bottom:4px;">${user.name}</div>
+      <div style="font-family:'Space Mono',monospace; font-size:10px; color:#64748b; margin-bottom:10px;">${user.email}</div>
+      <div style="display:flex; gap:6px; flex-wrap:wrap;">
+        <span style="background:rgba(56,189,248,0.1); border:1px solid rgba(56,189,248,0.3); color:#38bdf8;
+          font-size:9px; font-weight:700; padding:3px 8px; border-radius:20px; letter-spacing:1px;">
+          ${statusLabel}
+        </span>
+        <span style="background:rgba(52,211,153,0.1); border:1px solid ${activeColor}40; color:${activeColor};
+          font-size:9px; font-weight:700; padding:3px 8px; border-radius:20px; letter-spacing:1px;">
+          ${activeLabel}
+        </span>
+      </div>
+     <div style="display:flex; gap:6px; flex-wrap:wrap;">
+      <button onclick="openMessageModal(${user.id}, '${user.name}')"
+        style="
+          padding:6px 10px;
+          border:none;
+          border-radius:6px;
+          background:#3b82f6;
+          color:white;
+          cursor:pointer;
+        ">
+        💬 Kirim Pesan
+      </button>
+    </div>
+    </div>
+  `;
+}
+
+// ─── SIDEBAR CARD ───
+function renderSidebar() {
+  const list = document.getElementById('userList');
+  const users = Object.values(usersData);
+  let activeCount = 0, inactiveCount = 0;
+
+  list.innerHTML = '';
+  users.forEach(user => {
+    const isActive = !!user.refresh_token;
+    if (isActive) activeCount++; else inactiveCount++;
+    const initials = user.name ? user.name.split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase() : '?';
+
+    const card = document.createElement('div');
+    card.className = 'user-card';
+    card.innerHTML = `
+      <div class="user-avatar ${isActive ? 'active' : 'inactive'}">
+        <div class="status-ring"></div>
+        ${initials}
+      </div>
+      <div class="user-info">
+        <div class="user-name">${user.name || '-'}</div>
+        <div class="user-email">${user.email || '-'}</div>
+      </div>
+      <div class="user-status-badge ${isActive ? 'active' : 'inactive'}">${isActive ? 'ON' : 'OFF'}</div>
+    `;
+    card.addEventListener('click', () => {
+      if (markers[user.id] && user.latitude != null) {
+        map.setView([parseFloat(user.latitude), parseFloat(user.longitude)], 14, { animate: true });
+        markers[user.id].openPopup();
+      }
+    });
+    list.appendChild(card);
+  });
+
+  document.getElementById('activeCount').textContent = activeCount;
+  document.getElementById('inactiveCount').textContent = inactiveCount;
+  document.getElementById('userCount').textContent = users.length + ' Total';
+}
+
+// ─── TOAST ───
+let toastTimer;
+function showToast(title, body) {
+  const toast = document.getElementById('toast');
+  document.getElementById('toastTitle').textContent = title;
+  document.getElementById('toastBody').textContent = body;
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 3500);
+}
+
+// ─── LOAD USERS ───
+async function loadUsers() {
+  try {
+    const res = await fetch(CONFIG.API_BASE+"/api/users", {
+      headers: { Authorization: "Bearer " + token }
+    });
+    const result = await res.json();
+    const users = result.data || result;
+    if (!Array.isArray(users)) return;
+
+    let bounds = [];
+
+    users.forEach(user => {
+      usersData[user.id] = user;
+
+      if (user.latitude != null && user.longitude != null) {
+        const lat = parseFloat(user.latitude);
+        const lng = parseFloat(user.longitude);
+        if (isNaN(lat) || isNaN(lng)) return;
+
+        bounds.push([lat, lng]);
+        const isActive = user.refresh_token != null;
+        const icon = createMarkerIcon(isActive, user.status_area);
+
+        const marker = L.marker([lat, lng], { icon }).addTo(map);
+        marker.bindPopup(popupHTML(user, isActive), { maxWidth: 240 });
+        markers[user.id] = marker;
+      }
+    });
+
+    if (bounds.length > 0) {
+      map.fitBounds(bounds, { padding: [60, 60] });
+    }
+
+    renderSidebar();
+    showToast('Connected', `${users.length} users loaded`);
+  } catch (err) {
+    console.error("Load users error:", err);
+  }
+}
+
+// ─── SMOOTH MOVE ───
+function smoothMove(marker, newLat, newLng, duration = 800) {
+  const start = marker.getLatLng();
+  const startLat = start.lat, startLng = start.lng;
+  const steps = 60;
+  const intervalTime = duration / steps;
+  let step = 0;
+  const interval = setInterval(() => {
+    step++;
+    const t = step / steps;
+    const ease = t < 0.5 ? 2*t*t : -1+(4-2*t)*t; // ease in-out quad
+    marker.setLatLng([
+      startLat + (newLat - startLat) * ease,
+      startLng + (newLng - startLng) * ease
+    ]);
+    if (step >= steps) clearInterval(interval);
+  }, intervalTime);
+}
+
+// ─── SOCKET ───
+const socket = io(CONFIG.API_BASE+"", { auth: { token } });
+
+socket.on("connect", () => {
+  console.log("🟢 Socket connected:", socket.id);
+  showToast('Live', 'Realtime tracking active');
+});
+
+socket.on("disconnect", () => {
+  showToast('Disconnected', 'Reconnecting...');
+});
+
+socket.on("updateLocation", (user) => {
+  const lat = parseFloat(user.latitude);
+  const lng = parseFloat(user.longitude);
+  if (isNaN(lat) || isNaN(lng)) return;
+
+  // Update stored data
+  if (usersData[user.id]) {
+    usersData[user.id] = { ...usersData[user.id], ...user };
+  } else {
+    usersData[user.id] = user;
+  }
+
+  const isActive = user.refresh_token != null;
+  const icon = createMarkerIcon(isActive, user.status_area);
+
+  if (markers[user.id]) {
+    smoothMove(markers[user.id], lat, lng, 800);
+    markers[user.id].setIcon(icon);
+    markers[user.id].setPopupContent(popupHTML(user, isActive));
+  } else {
+    const marker = L.marker([lat, lng], { icon }).addTo(map);
+    marker.bindPopup(popupHTML(user, isActive), { maxWidth: 240 });
+    markers[user.id] = marker;
+  }
+
+  renderSidebar();
+  showToast('Location Updated', `${user.name || 'User'} moved`);
+});
+
+// ─── LOGOUT ───
+document.getElementById("btnLogout").addEventListener("click", async () => {
+  try {
+    if (typeof socket !== "undefined") socket.disconnect();
+    await fetch(CONFIG.API_BASE+"/api/logout", {
+      method: "DELETE",
+      headers: { Authorization: "Bearer " + token },
+      credentials: "include"
+    });
+    localStorage.removeItem("accessToken");
+    window.location.href = "/index.html";
+  } catch (err) {
+    console.error("Logout error:", err);
+    alert("Gagal logout");
+  }
+});
+
+let currentUserId = null; // global dulu
+
+function renderChat(messages) {
+  const chatBox = document.getElementById("chatBox");
+  chatBox.innerHTML = "";
+
+  messages.forEach(msg => {
+    const isMe = msg.sender_id == currentUserId;
+
+    const wrapper = document.createElement("div");
+    wrapper.style.display = "flex";
+    wrapper.style.justifyContent = isMe ? "flex-end" : "flex-start";
+
+    const bubble = document.createElement("div");
+    bubble.style.maxWidth = "70%";
+    bubble.style.padding = "8px 12px";
+    bubble.style.margin = "4px";
+    bubble.style.borderRadius = isMe
+      ? "10px 10px 0 10px"
+      : "10px 10px 10px 0";
+
+    bubble.style.background = isMe ? "#22c55e" : "#374151";
+    bubble.style.color = "white";
+
+    bubble.innerHTML = `
+      <div style="font-size:10px; opacity:0.6;">
+        ${isMe ? "Anda" : "User"}
+      </div>
+      <div>${msg.message}</div>
+    `;
+
+    wrapper.appendChild(bubble);
+    chatBox.appendChild(wrapper);
+  });
+
+  chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+async function loadChat(userId) {
+  const res = await fetch(CONFIG.API_BASE+`/api/message/${userId}`, {
+    headers: {
+      Authorization: "Bearer " + token
+    }
+  });
+
+  const data = await res.json();
+  console.log("DATA CHAT:", data);
+  renderChat(data);
+}
+
+
+let selectedUserId = null;
+
+async function openMessageModal(userId, userName) {
+  selectedUserId = userId;
+
+  document.getElementById("modalUserName").innerText = "Chat dengan " + userName;
+  document.getElementById("messageModal").style.display = "flex";
+
+  await loadChat(userId); // 🔥 ini yang bikin chat muncul
+}
+
+function closeModal() {
+  document.getElementById("messageModal").style.display = "none";
+  document.getElementById("messageText").value = "";
+}
+
+async function sendMessage() {
+  const text = document.getElementById("messageText").value;
+
+  if (!text) {
+    alert("Pesan tidak boleh kosong");
+    return;
+  }
+
+  try {
+    const res = await fetch(CONFIG.API_BASE+"/api/message", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + token
+      },
+      body: JSON.stringify({
+        receriver_id: selectedUserId,
+        message: text
+      })
+    });
+
+    const result = await res.json();
+
+    if (!res.ok) {
+      alert(result.msg || "Gagal kirim pesan");
+      return;
+    }
+
+    // ✅ kosongkan input
+    document.getElementById("messageText").value = "";
+
+    // ✅ reload chat biar langsung muncul
+    await loadChat(selectedUserId);
+
+  } catch (error) {
+    console.error("Error:", error);
+    alert("Error kirim pesan");
+  }
+}
+
+const openBtn = document.getElementById("openLocationModalBtn");
+const modal = document.getElementById("locationModal");
+const cancelBtn = document.getElementById("cancelLocationBtn");
+
+// buka modal
+openBtn.addEventListener("click", () => {
+  modal.style.display = "flex";
+});
+
+// tutup modal (cancel)
+cancelBtn.addEventListener("click", () => {
+  modal.style.display = "none";
+});
+
+// klik di luar modal = tutup
+window.addEventListener("click", (e) => {
+  if (e.target === modal) {
+    modal.style.display = "none";
+  }
+});
+
+// ========== TAMPILKAN LOKASI DARI API ==========
+
+let locationLayers = [];
+
+// Fungsi untuk membuat marker dengan animasi neon pulse
+function createAnimatedMarker(lat, lng, name) {
+  // Custom icon dengan animasi CSS
+  const iconHtml = `
+    <div style="
+      position: relative;
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    ">
+      <div style="
+        position: absolute;
+        width: 12px;
+        height: 12px;
+        background: #38bdf8;
+        border-radius: 50%;
+        box-shadow: 0 0 8px #38bdf8, 0 0 16px #38bdf8;
+        animation: markerPulse 1.5s ease-in-out infinite;
+      "></div>
+      <div style="
+        position: absolute;
+        width: 8px;
+        height: 8px;
+        background: white;
+        border-radius: 50%;
+        animation: markerInnerPulse 1.5s ease-in-out infinite;
+      "></div>
+    </div>
+  `;
+
+  const customIcon = L.divIcon({
+    html: iconHtml,
+    iconSize: [24, 24],
+    className: 'animated-marker',
+    popupAnchor: [0, -12]
+  });
+
+  const marker = L.marker([lat, lng], { icon: customIcon })
+    .bindPopup(`
+      <b>🏷️ ${name}</b><br>
+      📍 Lat: ${lat.toFixed(5)}, Lng: ${lng.toFixed(5)}
+    `);
+
+  return marker;
+}
+
+const saveBtn = document.getElementById("saveLocationBtn");
+
+saveBtn.addEventListener("click", saveLocation);
+
+async function saveLocation() {
+  const name = document.getElementById("locationName").value;
+  const lat = document.getElementById("locationLat").value;
+  const lng = document.getElementById("locationLng").value;
+  const radius = document.getElementById("locationRadius").value;
+
+  // validasi
+  if (!name || !lat || !lng || !radius) {
+    alert("Semua field harus diisi!");
+    return;
+  }
+
+  try {
+    const res = await fetch(CONFIG.API_BASE + "/api/location", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + token // kalau pakai auth
+      },
+      body: JSON.stringify({
+        name: name,
+        latitude: parseFloat(lat),
+        longitude: parseFloat(lng),
+        radius: parseInt(radius)
+      })
+    });
+
+    const result = await res.json();
+
+    if (!res.ok) {
+      throw new Error(result.msg || "Gagal menyimpan lokasi");
+    }
+
+    alert("✅ Lokasi berhasil ditambahkan");
+
+    // reset form
+    document.getElementById("locationName").value = "";
+    document.getElementById("locationLat").value = "";
+    document.getElementById("locationLng").value = "";
+    document.getElementById("locationRadius").value = "100";
+
+    // tutup modal
+    modal.style.display = "none";
+
+    console.log("DATA:", result);
+
+  } catch (error) {
+    console.error("❌ ERROR:", error);
+    alert(error.message);
+  }
+}
+
+// Fungsi untuk membuat circle dengan animasi neon dash dan glow
+function createAnimatedCircle(lat, lng, radius, name) {
+  // Circle utama dengan stroke neon
+  const circle = L.circle([lat, lng], {
+    color: '#38bdf8',
+    weight: 2,
+    fillColor: '#38bdf8',
+    fillOpacity: 0.1,
+    radius: radius || 100,
+    className: 'animated-circle',
+    stroke: true,
+    dashArray: '8, 8',
+    lineCap: 'round'
+  }).addTo(map);
+
+  // Animasi dash offset menggunakan CSS + requestAnimationFrame
+  // Kita bisa menambahkan class CSS untuk animasi stroke dash
+  const svgElement = circle._path;
+  if (svgElement) {
+    svgElement.style.animation = 'dashOffset 2s linear infinite';
+    svgElement.style.strokeDasharray = '8 8';
+  }
+
+  // Circle kedua untuk efek "ripple" (denyut radius)
+  const rippleCircle = L.circle([lat, lng], {
+    color: '#38bdf8',
+    weight: 1,
+    fillColor: 'transparent',
+    radius: radius || 100,
+    className: 'ripple-circle',
+    opacity: 0.6
+  }).addTo(map);
+
+  // Animasi ripple dengan interval
+  let growing = true;
+  const interval = setInterval(() => {
+    let currentRadius = rippleCircle.getRadius();
+    if (growing) {
+      currentRadius += 5;
+      if (currentRadius >= (radius || 100) + 25) growing = false;
+    } else {
+      currentRadius -= 5;
+      if (currentRadius <= (radius || 100)) growing = true;
+    }
+    rippleCircle.setRadius(currentRadius);
+  }, 80);
+
+  // Simpan interval untuk cleanup nanti
+  rippleCircle._rippleInterval = interval;
+
+  return { circle, rippleCircle };
+}
+
+// CSS untuk animasi (tambahkan ke head)
+const style = document.createElement('style');
+style.textContent = `
+  @keyframes markerPulse {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.5); opacity: 0.6; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  @keyframes markerInnerPulse {
+    0% { transform: scale(1); opacity: 0.8; }
+    50% { transform: scale(1.2); opacity: 0.4; }
+    100% { transform: scale(1); opacity: 0.8; }
+  }
+  @keyframes dashOffset {
+    to { stroke-dashoffset: -16; }
+  }
+  .animated-circle {
+    animation: dashOffset 2s linear infinite;
+  }
+  .ripple-circle {
+    animation: rippleGlow 1.5s ease-out infinite;
+  }
+  @keyframes rippleGlow {
+    0% { opacity: 0.6; }
+    50% { opacity: 0.2; }
+    100% { opacity: 0.6; }
+  }
+`;
+document.head.appendChild(style);
+
+async function fetchAndDisplayLocations() {
+  try {
+    const response = await fetch(CONFIG.API_BASE +`/api/location`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    console.log("STATUS:", response.status);
+
+    const locations = await response.json();
+    console.log("DATA:", locations);
+
+    // Hapus semua layer sebelumnya dan bersihkan interval ripple
+    locationLayers.forEach(layer => {
+      if (layer._rippleInterval) clearInterval(layer._rippleInterval);
+      if (layer.remove) map.removeLayer(layer);
+      else if (layer.circle) map.removeLayer(layer.circle);
+    });
+    locationLayers = [];
+
+    for (let loc of locations) {
+      const { name, latitude, longitude, radius } = loc;
+
+      if (!latitude || !longitude) continue;
+
+      // Marker dengan animasi pulse
+      const marker = createAnimatedMarker(latitude, longitude, name);
+      marker.addTo(map);
+
+      // Circle dengan animasi dash dan ripple
+      const { circle, rippleCircle } = createAnimatedCircle(latitude, longitude, radius, name);
+      
+      // Simpan semua layer + interval untuk cleanup
+      locationLayers.push(marker, circle, rippleCircle);
+      // Simpan interval di rippleCircle agar bisa di-clear nanti
+      locationLayers.push({ _rippleInterval: rippleCircle._rippleInterval });
+    }
+
+    // Auto zoom ke semua lokasi
+    if (locationLayers.length > 0) {
+      const group = L.featureGroup(locationLayers.filter(l => l instanceof L.Layer));
+      map.fitBounds(group.getBounds());
+    }
+
+  } catch (err) {
+    console.error("ERROR:", err);
+  }
+}
+
+navigator.geolocation.getCurrentPosition(
+  (pos) => {
+    initMap(pos.coords.latitude, pos.coords.longitude);
+    fetchAndDisplayLocations();
+    loadUsers();
+  },
+  (err) => {
+    initMap();
+    fetchAndDisplayLocations();
+    loadUsers();
+  }
+);
+
+</script>
+</body>
+</html>

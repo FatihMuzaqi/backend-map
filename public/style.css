@@ -1,0 +1,122 @@
+body {
+  font-family: Arial, sans-serif;
+  background: #f4f4f4;
+}
+
+.register-container {
+  width: 350px;
+  margin: 80px auto;
+  padding: 20px;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}
+
+.register-title {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.register-form {
+  display: flex;
+  flex-direction: column;
+}
+
+.register-input {
+  margin-bottom: 15px;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+}
+
+.register-button {
+  padding: 10px;
+  border: none;
+  background: #007bff;
+  color: white;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.register-button:hover {
+  background: #0056b3;
+}
+
+.register-message {
+  margin-top: 15px;
+  text-align: center;
+  font-size: 14px;
+}
+
+
+.login-container {
+  width: 350px;
+  margin: 80px auto;
+  padding: 20px;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}
+
+.login-title {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+}
+
+.login-input {
+  margin-bottom: 15px;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+}
+
+.login-button {
+  padding: 10px;
+  border: none;
+  background: #28a745;
+  color: white;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.login-button:hover {
+  background: #1e7e34;
+}
+
+.login-message {
+  margin-top: 15px;
+  text-align: center;
+  font-size: 14px;
+}
+
+ #btnLogout {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  z-index: 1000;
+
+  padding: 10px 16px;
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  transition: all 0.2s ease;
+}
+
+#btnLogout:hover {
+  transform: scale(1.05);
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+}
+
+#btnLogout:active {
+  transform: scale(0.95);
+}

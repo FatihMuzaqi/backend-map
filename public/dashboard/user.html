@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>LiveTrack · GPS & Chat</title>
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css"/>
+  
+  <!-- Font Awesome 6 (free icons) -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', 'Poppins', system-ui, -apple-system, BlinkMacSystemFont, 'Roboto', sans-serif;
+      overflow: hidden;
+    }
+
+    #map {
+      height: 100vh;
+      width: 100%;
+      z-index: 1;
+    }
+
+    /* ========= GLASS CHAT PANEL ========= */
+    .chat-panel {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      width: 380px;
+      max-width: calc(100vw - 48px);
+      background: rgba(20, 24, 35, 0.85);
+      backdrop-filter: blur(16px);
+      border-radius: 28px;
+      box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1);
+      z-index: 1000;
+      transition: all 0.25s ease;
+      font-size: 0.9rem;
+      color: #f0f3fa;
+    }
+
+    /* minimized state */
+    .chat-panel.minimized .chat-body,
+    .chat-panel.minimized .chat-footer {
+      display: none;
+    }
+
+    .chat-panel.minimized {
+      width: auto;
+      background: rgba(20, 24, 35, 0.9);
+      border-radius: 60px;
+      cursor: pointer;
+    }
+
+    .chat-panel.minimized .chat-header {
+      border-bottom: none;
+      padding: 10px 18px;
+    }
+
+    .chat-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 18px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+      cursor: pointer;
+      border-radius: 28px 28px 0 0;
+    }
+
+    .chat-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 600;
+      font-size: 1rem;
+      letter-spacing: 0.3px;
+    }
+
+    .chat-title i {
+      font-size: 1.2rem;
+      color: #4c9aff;
+    }
+
+    .chat-actions {
+      display: flex;
+      gap: 12px;
+    }
+
+    .chat-actions button {
+      background: transparent;
+      border: none;
+      color: #e0e4f0;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: 0.2s;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .chat-actions button:hover {
+      color: white;
+      transform: scale(1.05);
+    }
+
+    .chat-body {
+      height: 420px;
+      max-height: 45vh;
+      overflow-y: auto;
+      padding: 16px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      scroll-behavior: smooth;
+    }
+
+    /* custom scroll */
+    .chat-body::-webkit-scrollbar {
+      width: 5px;
+    }
+    .chat-body::-webkit-scrollbar-track {
+      background: rgba(255,255,255,0.05);
+      border-radius: 10px;
+    }
+    .chat-body::-webkit-scrollbar-thumb {
+      background: rgba(255,255,255,0.3);
+      border-radius: 10px;
+    }
+
+    /* bubble styles */
+    .message-bubble {
+      max-width: 80%;
+      display: flex;
+      flex-direction: column;
+      animation: fadeInUp 0.2s ease;
+    }
+
+    .my-message {
+      align-self: flex-end;
+    }
+    .other-message {
+      align-self: flex-start;
+    }
+
+    .bubble {
+      padding: 10px 14px;
+      border-radius: 22px;
+      background: #2d313e;
+      color: #f0f3fa;
+      word-wrap: break-word;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+
+    .my-message .bubble {
+      background: linear-gradient(135deg, #1e6df2, #0a4bc2);
+      color: white;
+      border-bottom-right-radius: 4px;
+    }
+
+    .other-message .bubble {
+      background: rgba(45, 49, 62, 0.95);
+      backdrop-filter: blur(4px);
+      border-bottom-left-radius: 4px;
+    }
+
+    .message-meta {
+      font-size: 0.7rem;
+      margin-top: 5px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      color: #a0a6bc;
+      padding-left: 6px;
+      padding-right: 6px;
+    }
+
+    .my-message .message-meta {
+      justify-content: flex-end;
+    }
+
+    .sender-name {
+      font-weight: 500;
+      letter-spacing: 0.3px;
+    }
+
+    .timestamp {
+      font-size: 0.65rem;
+      opacity: 0.7;
+    }
+
+    /* chat footer */
+    .chat-footer {
+      padding: 14px 18px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .receiver-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: rgba(0, 0, 0, 0.35);
+      padding: 8px 12px;
+      border-radius: 60px;
+    }
+
+    .receiver-row label {
+      font-size: 0.8rem;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .receiver-row input {
+      background: rgba(255, 255, 255, 0.15);
+      border: none;
+      padding: 6px 12px;
+      border-radius: 40px;
+      color: white;
+      font-weight: 500;
+      width: 80px;
+      text-align: center;
+      outline: none;
+      font-size: 0.85rem;
+    }
+
+    .input-group {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .input-group input {
+      flex: 1;
+      background: rgba(30, 34, 48, 0.9);
+      border: 1px solid rgba(255,255,255,0.2);
+      padding: 10px 14px;
+      border-radius: 40px;
+      color: white;
+      outline: none;
+      font-size: 0.85rem;
+      transition: 0.2s;
+    }
+
+    .input-group input:focus {
+      border-color: #4c9aff;
+      background: #1e2538;
+    }
+
+    .input-group button {
+      background: linear-gradient(135deg, #1e6df2, #0a4bc2);
+      border: none;
+      width: 42px;
+      height: 42px;
+      border-radius: 42px;
+      color: white;
+      cursor: pointer;
+      transition: 0.2s;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+    }
+
+    .input-group button:hover {
+      transform: scale(1.04);
+      background: #0f58d0;
+    }
+
+    .refresh-btn {
+      background: rgba(255,255,255,0.1);
+      border: none;
+      padding: 6px 10px;
+      border-radius: 30px;
+      color: white;
+      font-size: 0.7rem;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    .refresh-btn:hover {
+      background: rgba(255,255,255,0.25);
+    }
+
+    /* loading / empty state */
+    .empty-chat {
+      text-align: center;
+      color: #aab3d0;
+      font-size: 0.85rem;
+      padding: 30px 10px;
+      background: rgba(0,0,0,0.2);
+      border-radius: 24px;
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(8px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* logout button makeover (keep consistent) */
+    #btnLogout {
+      position: absolute;
+      top: 18px;
+      right: 18px;
+      z-index: 1001;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(12px);
+      color: white;
+      border: 1px solid rgba(255, 70, 70, 0.5);
+      border-radius: 40px;
+      padding: 8px 18px;
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+
+    #btnLogout:hover {
+      background: #dc2626;
+      border-color: white;
+      transform: scale(1.02);
+    }
+
+    /* small badge */
+    .user-badge {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      background: rgba(0,0,0,0.5);
+      backdrop-filter: blur(8px);
+      padding: 5px 12px;
+      border-radius: 40px;
+      font-size: 0.7rem;
+      color: white;
+      z-index: 1000;
+      font-family: monospace;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+
+<button id="btnLogout"><i class="fas fa-sign-out-alt"></i> Logout</button>
+<div id="map"></div>
+<div class="user-badge" id="userBadge">📍 Live Tracking</div>
+
+<!-- CHAT WIDGET -->
+<div class="chat-panel" id="chatPanel">
+  <div class="chat-header" id="chatHeaderToggle">
+    <div class="chat-title">
+      <i class="fas fa-comment-dots"></i>
+      <span>Pesan Instan</span>
+    </div>
+    <div class="chat-actions">
+      <button id="refreshChatBtn" title="Refresh pesan"><i class="fas fa-sync-alt"></i></button>
+      <button id="minimizeChatBtn" title="Minimize"><i class="fas fa-minus"></i></button>
+    </div>
+  </div>
+  <div class="chat-body" id="chatMessagesContainer">
+    <div class="empty-chat">
+      <i class="fas fa-spinner fa-pulse"></i> Memuat percakapan...
+    </div>
+  </div>
+  <div class="chat-footer">
+    <div class="receiver-row">
+      <label><i class="fas fa-user-friends"></i> Kirim ke ID:</label>
+      <input type="number" id="receiverIdInput" placeholder="User ID" value="3" step="1">
+      <span style="font-size: 12px; opacity:0.7;">contoh: 3</span>
+    </div>
+    <div class="input-group">
+      <input type="text" id="messageInput" placeholder="Tulis pesan..." autocomplete="off">
+      <button id="sendMsgBtn"><i class="fas fa-paper-plane"></i></button>
+    </div>
+  </div>
+</div>
+
+<script src="../port.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script>
+  // ======================= GLOBAL VARIABLES =======================
+  const API_BASE = CONFIG.API_BASE;   // base backend (sama dengan tracking)
+  const token = localStorage.getItem("accessToken");
+
+  // Auth guard
+  if (!token) {
+    alert("Harus login dulu! Silakan login kembali.");
+    window.location.href = "/index.html";
+  }
+
+  let map, marker, watchId;
+  let chatRefreshInterval = null;
+  let currentUserId = null;     // akan diambil dari JWT
+  let isChatMinimized = false;
+
+  // DOM elements chat
+  const chatContainer = document.getElementById("chatPanel");
+  const chatBody = document.getElementById("chatMessagesContainer");
+  const receiverInput = document.getElementById("receiverIdInput");
+  const messageInput = document.getElementById("messageInput");
+  const sendBtn = document.getElementById("sendMsgBtn");
+  const refreshBtn = document.getElementById("refreshChatBtn");
+  const minimizeBtn = document.getElementById("minimizeChatBtn");
+  const chatHeaderToggle = document.getElementById("chatHeaderToggle");
+
+  // ======================= DECODE JWT : get current user ID =======================
+  function getUserIdFromToken(jwtToken) {
+    try {
+      const base64Url = jwtToken.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+      }).join(''));
+      const payload = JSON.parse(jsonPayload);
+      // typical field: sub, id, userId, user_id
+      return payload.id || payload.userId || payload.sub || payload.user_id || null;
+    } catch (e) {
+      console.warn("Gagal decode token:", e);
+      return null;
+    }
+  }
+
+  currentUserId = getUserIdFromToken(token);
+  if (currentUserId) {
+    document.getElementById("userBadge").innerHTML = `<i class="fas fa-user-circle"></i> ID: ${currentUserId} · Live GPS`;
+  } else {
+    document.getElementById("userBadge").innerHTML = `<i class="fas fa-shield-alt"></i> Terhubung · Chat Aktif`;
+    console.warn("Tidak bisa extract user ID dari token, chat akan tetap berjalan (tampilkan sender_id)");
+  }
+
+    const socket = io(API_BASE, {
+    auth: {
+      token: token,
+      userId: currentUserId
+    }
+  });
+    console.log(token),
+    console.log(currentUserId)
+
+socket.on("connect", () => {
+  console.log("🟢 Socket connected:", socket.id);
+});
+
+  // ======================= MAP & TRACKING (asli dikembangkan) =======================
+  function initMap(lat = -6.2, lng = 106.8) {
+    map = L.map("map").setView([lat, lng], 16);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "&copy; OpenStreetMap contributors"
+    }).addTo(map);
+  }
+
+  async function sendLocation(lat, lng) {
+    try {
+      await fetch(`${API_BASE}/api/tracking`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer " + token
+        },
+        body: JSON.stringify({ latitude: lat, longitude: lng })
+      });
+    } catch (error) {
+      console.error("Gagal kirim lokasi:", error);
+    }
+  }
+
+  function startTracking() {
+    if (!navigator.geolocation) {
+      alert("Browser tidak support GPS");
+      return;
+    }
+    watchId = navigator.geolocation.watchPosition(
+      async (position) => {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        if (marker) {
+          marker.setLatLng([lat, lng]);
+        } else {
+          marker = L.marker([lat, lng]).addTo(map).bindPopup("📍 Anda di sini").openPopup();
+        }
+        map.setView([lat, lng]);
+        await sendLocation(lat, lng);
+      },
+      (err) => console.error("GPS Error:", err),
+      { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 }
+    );
+  }
+
+  // inisialisasi map setelah dapat posisi awal
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      initMap(pos.coords.latitude, pos.coords.longitude);
+      startTracking();
+    },
+    (err) => {
+      console.warn("Gagal dapat posisi awal, pakai default Jakarta");
+      initMap();
+      startTracking();
+    }
+  );
+
+  // ======================= CHAT CORE =======================
+  // Ambil semua pesan dari API
+  async function fetchMessages() {
+    if (!token) return [];
+    try {
+      const response = await fetch(`${API_BASE}/api/message`, {
+        method: "GET",
+        headers: {
+          Authorization: "Bearer " + token,
+          "Content-Type": "application/json"
+        }
+      });
+      if (!response.ok) {
+        if (response.status === 401) throw new Error("Unauthorized");
+        throw new Error("Gagal ambil pesan");
+      }
+      const result = await response.json();
+      if (result.status === 200 && Array.isArray(result.data)) {
+        return result.data;
+      } else {
+        return [];
+      }
+    } catch (error) {
+      console.error("Fetch messages error:", error);
+      return [];
+    }
+  }
+
+  // Kirim pesan baru
+  async function sendMessage(receiverId, messageText) {
+    if (!messageText.trim()) {
+      alert("Pesan tidak boleh kosong");
+      return false;
+    }
+    if (!receiverId || isNaN(receiverId)) {
+      alert("Masukkan ID penerima yang valid (angka)");
+      return false;
+    }
+    try {
+      const response = await fetch(`${API_BASE}/api/message`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer " + token
+        },
+        body: JSON.stringify({
+          receriver_id: parseInt(receiverId),
+          message: messageText.trim()
+        })
+      });
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.message || "Gagal mengirim pesan");
+      }
+      // bersihkan input
+      messageInput.value = "";
+      // refresh daftar pesan
+      await refreshChat();
+      return true;
+    } catch (error) {
+      console.error("Send message error:", error);
+      alert(`Gagal kirim: ${error.message}`);
+      return false;
+    }
+  }
+
+  // Render pesan ke dalam chat body
+  function renderMessages(messages) {
+    if (!chatBody) return;
+    if (!messages || messages.length === 0) {
+      chatBody.innerHTML = `<div class="empty-chat"><i class="far fa-comments"></i> Belum ada pesan. Kirim pesan pertama!</div>`;
+      return;
+    }
+
+    // urutkan berdasarkan createdAt (terlama di atas / terbaru di bawah)
+    const sorted = [...messages].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+    chatBody.innerHTML = "";
+    for (const msg of sorted) {
+      const isOwn = (currentUserId && msg.sender_id === currentUserId) || (!currentUserId && false); 
+      const bubbleDiv = document.createElement("div");
+      bubbleDiv.className = `message-bubble ${isOwn ? 'my-message' : 'other-message'}`;
+      
+      // format waktu lokal
+      let timeStr = "";
+      if (msg.createdAt) {
+        const date = new Date(msg.createdAt);
+        timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      }
+      
+      // nama pengirim: jika tidak ada username, tampilkan "User ID"
+      const senderLabel = msg.sender_id ? `ID: ${msg.sender_id}` : "Seseorang";
+      
+      bubbleDiv.innerHTML = `
+        <div class="bubble">
+          ${msg.message}
+        </div>
+        <div class="message-meta">
+          <span class="sender-name"><i class="fas fa-user-circle"></i> ${senderLabel}</span>
+          <span class="timestamp"><i class="far fa-clock"></i> ${timeStr}</span>
+        </div>
+      `;
+      chatBody.appendChild(bubbleDiv);
+    }
+    // scroll ke bawah
+    chatBody.scrollTop = chatBody.scrollHeight;
+  }
+
+  async function refreshChat() {
+    if (!chatBody) return;
+    // tampilkan loading sementara
+    const oldContent = chatBody.innerHTML;
+    chatBody.innerHTML = `<div class="empty-chat"><i class="fas fa-spinner fa-pulse"></i> Memperbarui pesan...</div>`;
+    try {
+      const messages = await fetchMessages();
+      renderMessages(messages);
+    } catch (err) {
+      console.error("Refresh gagal", err);
+      chatBody.innerHTML = `<div class="empty-chat"><i class="fas fa-exclamation-triangle"></i> Gagal memuat pesan. Coba lagi.</div>`;
+      // restore old content jika ada?
+    }
+  }
+
+  // auto refresh tiap 6 detik
+  function startAutoRefresh(intervalMs = 6000) {
+    if (chatRefreshInterval) clearInterval(chatRefreshInterval);
+    chatRefreshInterval = setInterval(() => {
+      if (!isChatMinimized) {
+        refreshChat().catch(e => console.warn("auto refresh error", e));
+      } else {
+        // meskipun minimize, kita tetap fetch di background agar data up to date saat expand
+        fetchMessages().then(msgs => {
+          // store data terbaru di cache? tidak perlu, nanti saat expand akan refresh
+        }).catch(()=>{});
+      }
+    }, intervalMs);
+  }
+
+  // ======================= CHAT UI EVENT =======================
+  function toggleMinimize() {
+    isChatMinimized = !isChatMinimized;
+    if (isChatMinimized) {
+      chatContainer.classList.add("minimized");
+      minimizeBtn.innerHTML = '<i class="fas fa-expand"></i>';
+    } else {
+      chatContainer.classList.remove("minimized");
+      minimizeBtn.innerHTML = '<i class="fas fa-minus"></i>';
+      // saat dibuka, refresh supaya konten terbaru
+      refreshChat();
+    }
+  }
+
+  // event listeners
+  async function onSendMessage() {
+    const receiverId = receiverInput.value.trim();
+    const message = messageInput.value;
+    if (!message) return;
+    await sendMessage(receiverId, message);
+  }
+
+  // ================= NOTIFICATION =================
+      function initNotification() {
+        if (!("Notification" in window)) {
+          console.warn("Browser tidak support notif");
+          return;
+        }
+
+        if (Notification.permission === "default") {
+          Notification.requestPermission().then(p => {
+            console.log("Permission:", p);
+          });
+        }
+      }
+
+      function showNotification(sender, message) {
+        if (Notification.permission === "granted" && document.hidden) {
+          const notif = new Notification("📩 Pesan Baru", {
+            body: `${sender}: ${message}`,
+            icon: "https://cdn-icons-png.flaticon.com/512/561/561127.png"
+          });
+
+          notif.onclick = () => {
+            window.focus();
+            notif.close();
+          };
+        }
+      }
+
+      initNotification();
+
+      // ================= SOCKET LISTENER =================
+      socket.on("newMessage", (data) => {
+        console.log("📩 Pesan masuk realtime:", data);
+
+        const senderName = data.sender || `User ${data.sender_id}`;
+
+        // 🔔 notif
+        showNotification(senderName, data.message);
+
+        // 🔥 langsung tampil tanpa refresh API
+        appendNewMessage(data);
+      });
+
+      function appendNewMessage(msg) {
+        if (!chatBody) return;
+
+        const isOwn = msg.sender_id == currentUserId;
+
+        const bubbleDiv = document.createElement("div");
+        bubbleDiv.className = `message-bubble ${isOwn ? 'my-message' : 'other-message'}`;
+
+        const date = new Date(msg.createdAt);
+        const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+        const senderLabel = msg.sender || `ID: ${msg.sender_id}`;
+
+        bubbleDiv.innerHTML = `
+          <div class="bubble">${msg.message}</div>
+          <div class="message-meta">
+            <span class="sender-name">${senderLabel}</span>
+            <span class="timestamp">${timeStr}</span>
+          </div>
+        `;
+
+        chatBody.appendChild(bubbleDiv);
+        chatBody.scrollTop = chatBody.scrollHeight;
+      }
+
+        // inisialisasi chat setelah token ada
+        async function initChat() {
+          // Load pertama
+          await refreshChat();
+          startAutoRefresh(7000); // refresh tiap 7 detik
+          
+          // event listener tombol
+          sendBtn.addEventListener("click", onSendMessage);
+          messageInput.addEventListener("keypress", (e) => {
+            if (e.key === "Enter") onSendMessage();
+          });
+          refreshBtn.addEventListener("click", () => refreshChat());
+          minimizeBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            toggleMinimize();
+          });
+          chatHeaderToggle.addEventListener("click", (e) => {
+            // jika klik pada header (bukan tombol minimize/refresh) dan dalam keadaan minimized -> expand
+            if (isChatMinimized) {
+              toggleMinimize();
+            }
+          });
+        }
+
+        // logout bersih-bersih + stop interval
+        async function logout() {
+          try {
+            if (watchId) navigator.geolocation.clearWatch(watchId);
+            if (chatRefreshInterval) clearInterval(chatRefreshInterval);
+            await fetch(`${API_BASE}/api/logout`, {
+              method: "DELETE",
+              headers: { Authorization: "Bearer " + token },
+              credentials: "include"
+            });
+          } catch (e) { console.error(e); }
+          localStorage.removeItem("accessToken");
+          alert("Logout berhasil");
+          window.location.href = "/index.html";
+        }
+
+        document.getElementById("btnLogout").addEventListener("click", logout);
+
+        // jalankan chat ketika halaman siap
+        initChat().catch(err => console.warn("Chat init error", err));
+</script>
+</body>
+</html>

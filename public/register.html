@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Register</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="register-container">
+    <h2 class="register-title">Register</h2>
+
+    <form id="registerForm" class="register-form">
+      <input type="text" id="name" class="register-input" placeholder="Nama" required />
+      <input type="email" id="email" class="register-input" placeholder="Email" required />
+      <input type="password" id="password" class="register-input" placeholder="Password" required />
+      <input type="password" id="confPassword" class="register-input" placeholder="Konfirmasi Password" required />
+
+      <button type="submit" class="register-button">Daftar</button>
+    </form>
+
+    <p id="register-message" class="register-message"></p>
+  </div>
+<script src="/port.js"></script>
+  <script>
+    const form = document.getElementById("registerForm");
+    const message = document.getElementById("register-message");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const name = document.getElementById("name").value;
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+      const confPassword = document.getElementById("confPassword").value;
+
+      try {
+        const response = await fetch(CONFIG.API_BASE+"/api/register", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            name,
+            email,
+            password,
+            confPassword
+          }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          message.style.color = "red";
+          message.innerText = data.msg;
+        } else {
+          message.style.color = "green";
+          message.innerText = data.msg;
+
+          // reset form
+          form.reset();
+        }
+      } catch (error) {
+        message.style.color = "red";
+        message.innerText = "Terjadi kesalahan pada server";
+        console.error(error);
+      }
+    });
+  </script>
+</body>
+</html>
